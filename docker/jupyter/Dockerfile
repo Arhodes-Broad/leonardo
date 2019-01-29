@@ -16,6 +16,7 @@ RUN echo "deb $DEBIAN_REPO/debian stretch main"                   > /etc/apt/sou
  && echo "deb $DEBIAN_REPO/debian-security stretch/updates main" >> /etc/apt/sources.list \
  && echo "deb $DEBIAN_REPO/debian stretch-backports main"        >> /etc/apt/sources.list \
  && echo "deb $DEBIAN_REPO/debian testing main"                  >> /etc/apt/sources.list \
+ && echo "deb $DEBIAN_REPO/debian unstable main"                  >> /etc/apt/sources.list \
  && echo 'APT::Default-Release "stable";' | tee -a /etc/apt/apt.conf.d/00local \
  && apt-get update \
  && apt-get -yq dist-upgrade \
@@ -37,7 +38,7 @@ RUN echo "deb $DEBIAN_REPO/debian stretch main"                   > /etc/apt/sou
 
  # R separately because it depends on gnupg installed above
  && echo "deb $CRAN_REPO/bin/linux/debian stretch-cran35/"       >> /etc/apt/sources.list \
- && apt-key adv  --no-tty --keyserver keys.gnupg.net \
+ && apt-key adv  --no-tty --keyserver keyserver.ubuntu.com \
     --recv-key 'E19F5F87128899B192B1A2C2AD5F960A256A04AF' \
 
  # Uncomment en_US.UTF-8 for inclusion in generation
@@ -61,9 +62,9 @@ ENV LC_ALL en_US.UTF-8
 # Java
 #######################
 
-ENV JAVA_VER jdk1.8.0_191
-ENV JAVA_TGZ jdk-8u191-linux-x64.tar.gz
-ENV JAVA_URL http://download.oracle.com/otn-pub/java/jdk/8u191-b12/2787e4a523244c269598db4e85c51e0c/$JAVA_TGZ
+ENV JAVA_VER jdk1.8.0_201
+ENV JAVA_TGZ jdk-8u201-linux-x64.tar.gz
+ENV JAVA_URL https://download.oracle.com/otn-pub/java/jdk/8u201-b09/42970487e3af4f5aa5bca3f542482c60/$JAVA_TGZ
 ENV JAVA_HOME /usr/lib/jdk/$JAVA_VER
 
 RUN wget --header "Cookie: oraclelicense=accept-securebackup-cookie" $JAVA_URL \
@@ -167,15 +168,17 @@ RUN apt-get update \
 
 # Python 3 Kernel
 RUN apt-get update \
- && apt-get install -t testing -yq --no-install-recommends \
+ && apt-get install -t unstable -yq \
+ # --no-install-recommends \
     python3.6 \
     python3.6-dev \
-    python3-distutils \
+    python-pip-whl \
     # for jupyterlab extensions
     nodejs \
     npm \
  && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 100 \
- && python3 get-pip.py \
+ # && python3 get-pip.py \
+ && pip3 install distutils \
  && pip3 install tornado==4.5.3 \
 # # Hail requires decorator
  && pip3 install -U decorator==4.3.0 \
