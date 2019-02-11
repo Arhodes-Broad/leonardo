@@ -7,7 +7,8 @@ case class ClusterResourcesConfig(initActionsScript: ClusterResource,
                                   jupyterProxySiteConf: ClusterResource,
                                   jupyterCustomJs: ClusterResource,
                                   jupyterGoogleSignInJs: ClusterResource,
-                                  jupyterNotebookConfigUri: ClusterResource
+                                  jupyterNotebookConfigUri: ClusterResource,
+                                  jupyterlabExtensionTemplate: ClusterResource
                                  )
 
 object ClusterResourcesConfig {
