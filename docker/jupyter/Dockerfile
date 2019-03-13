@@ -319,25 +319,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends apt-utils \
  # see: https://github.com/DataBiosphere/leonardo/issues/710
  && ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.3 /usr/lib/x86_64-linux-gnu/libgfortran.so
 
-RUN R -e 'install.packages(c( \
-    "IRdisplay",  \
-    "evaluate",  \
-    "pbdZMQ",  \
-    "devtools",  \
-    "uuid",  \
-    "reshape2",  \
-    "bigrquery",  \
-    "googleCloudStorageR",  \
-    "tidyverse"), \
-    repos="http://cran.mtu.edu")' \
- && R -e 'devtools::install_github("DataBiosphere/Ronaldo")' \
- && R -e 'devtools::install_github("IRkernel/IRkernel")' \
- && R -e 'IRkernel::installspec(user=FALSE)' \
- && chown -R $USER:users /home/jupyter-user/.local  \
- && R -e 'devtools::install_github("apache/spark@v2.2.3", subdir="R/pkg")' \
- && mkdir -p /home/jupyter-user/.rpackages \
- && echo "R_LIBS=/home/jupyter-user/.rpackages" > /home/jupyter-user/.Renviron \
- && chown -R $USER:users /home/jupyter-user/.rpackages
+#RUN R -e 'install.packages(c( \
+#    "IRdisplay",  \
+#    "evaluate",  \
+#    "pbdZMQ",  \
+#    "devtools",  \
+#    "uuid",  \
+#    "reshape2",  \
+#    "bigrquery",  \
+#    "googleCloudStorageR",  \
+#    "tidyverse"), \
+#    repos="http://cran.mtu.edu")' \
+# && R -e 'devtools::install_github("DataBiosphere/Ronaldo")' \
+# && R -e 'devtools::install_github("IRkernel/IRkernel")' \
+# && R -e 'IRkernel::installspec(user=FALSE)' \
+# && chown -R $USER:users /home/jupyter-user/.local  \
+# && R -e 'devtools::install_github("apache/spark@v2.2.3", subdir="R/pkg")' \
+# && mkdir -p /home/jupyter-user/.rpackages \
+# && echo "R_LIBS=/home/jupyter-user/.rpackages" > /home/jupyter-user/.Renviron \
+# && chown -R $USER:users /home/jupyter-user/.rpackages
 
 #######################
 # Utilities
