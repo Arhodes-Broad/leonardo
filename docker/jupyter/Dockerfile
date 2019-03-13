@@ -177,7 +177,7 @@ RUN apt-get update \
 
 
 # Python 3 Kernel
-ENV PYTHON_VERSION 3.6.8
+ENV PYTHON_VERSION 3.6.2
 
 # lifted from https://github.com/docker-library/python/blob/dd36c08c1f94083476a8579b8bf20c4cd46c6400/3.6/stretch/Dockerfile
 RUN set -ex \
