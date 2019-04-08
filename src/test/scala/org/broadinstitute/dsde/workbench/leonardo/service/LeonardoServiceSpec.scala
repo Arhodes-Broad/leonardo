@@ -22,6 +22,7 @@ import org.broadinstitute.dsde.workbench.leonardo.db.{DbSingleton, LeoComponent,
 import org.broadinstitute.dsde.workbench.leonardo.model.LeonardoJsonSupport._
 import org.broadinstitute.dsde.workbench.leonardo.model.MachineConfigOps.{NegativeIntegerArgumentInClusterRequestException, OneWorkerSpecifiedInClusterRequestException}
 import org.broadinstitute.dsde.workbench.leonardo.model._
+import org.broadinstitute.dsde.workbench.leonardo.model.google.ClusterStatus.Stopped
 import org.broadinstitute.dsde.workbench.leonardo.model.google._
 import org.broadinstitute.dsde.workbench.leonardo.monitor.NoopActor
 import org.broadinstitute.dsde.workbench.leonardo.util.BucketHelper
@@ -1042,8 +1043,8 @@ class LeonardoServiceSpec extends TestKit(ActorSystem("leonardotest")) with Flat
     val clusterCreateResponse =
       leo.processClusterCreationRequest(userInfo, project, name1, testClusterRequest).futureValue
 
-    // set the cluster to Running
-    dbFutureValue { _.clusterQuery.setToRunning(clusterCreateResponse.id, IP("1.2.3.4")) }
+    // set the cluster to Stopped
+    dbFutureValue { _.clusterQuery.updateClusterStatus(clusterCreateResponse.id, Stopped) }
 
     val newMachineType = "n1-micro-1"
     leo.updateCluster(userInfo, project, name1, testClusterRequest.copy(machineConfig = Some(MachineConfig(masterMachineType = Some(newMachineType))))).futureValue
@@ -1053,6 +1054,23 @@ class LeonardoServiceSpec extends TestKit(ActorSystem("leonardotest")) with Flat
 
     //check that the machine config has been updated
     dbFutureValue { _.clusterQuery.getClusterById(clusterCreateResponse.id) }.get.machineConfig.masterMachineType shouldBe Some(newMachineType)
+  }
+
+  it should "not allow changing the master machine type for a cluster in RUNNING state" in isolatedDbTest {
+    // create the cluster
+    val clusterCreateResponse =
+      leo.processClusterCreationRequest(userInfo, project, name1, testClusterRequest).futureValue
+
+    // set the cluster to Running
+    dbFutureValue { _.clusterQuery.setToRunning(clusterCreateResponse.id, IP("1.2.3.4")) }
+
+    val newMachineType = "n1-micro-1"
+    val failure = leo.updateCluster(userInfo, project, name1, testClusterRequest.copy(machineConfig = Some(MachineConfig(masterMachineType = Some(newMachineType))))).failed.futureValue
+
+    //check that status of cluster is still Running
+    dbFutureValue { _.clusterQuery.getClusterStatus(clusterCreateResponse.id) } shouldBe Some(ClusterStatus.Running)
+
+    failure shouldBe a [ClusterMachineTypeCannotBeChangedException]
   }
 
   it should "update the master disk size for a cluster" in isolatedDbTest {
