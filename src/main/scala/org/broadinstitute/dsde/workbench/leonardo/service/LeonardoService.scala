@@ -10,7 +10,7 @@ import cats.implicits._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
 import com.typesafe.scalalogging.LazyLogging
-import org.broadinstitute.dsde.workbench.google.{GoogleIamDAO, GoogleStorageDAO}
+import org.broadinstitute.dsde.workbench.google.{GoogleIamDAO, GoogleProjectDAO, GoogleStorageDAO}
 import org.broadinstitute.dsde.workbench.leonardo.config.{AutoFreezeConfig, ClusterDefaultsConfig, ClusterFilesConfig, ClusterResourcesConfig, DataprocConfig, ProxyConfig, SwaggerConfig}
 import org.broadinstitute.dsde.workbench.leonardo.dao.google.{GoogleComputeDAO, GoogleDataprocDAO}
 import org.broadinstitute.dsde.workbench.leonardo.db.{DataAccess, DbReference}
@@ -91,6 +91,7 @@ class LeonardoService(protected val dataprocConfig: DataprocConfig,
                       protected val gdDAO: GoogleDataprocDAO,
                       protected val googleComputeDAO: GoogleComputeDAO,
                       protected val googleIamDAO: GoogleIamDAO,
+                      protected val googleProjectDAO: GoogleProjectDAO,
                       protected val leoGoogleStorageDAO: GoogleStorageDAO,
                       protected val petGoogleStorageDAO: String => GoogleStorageDAO,
                       protected val dbRef: DbReference,
@@ -591,6 +592,7 @@ class LeonardoService(protected val dataprocConfig: DataprocConfig,
       autopauseThreshold = calculateAutopauseThreshold(clusterRequest.autopause, clusterRequest.autopauseThreshold)
       clusterScopes = clusterRequest.scopes.getOrElse(dataprocConfig.defaultScopes)
       credentialsFileName = serviceAccountInfo.notebookServiceAccount.map(_ => s"/etc/${ClusterInitValues.serviceAccountCredentialsFilename}")
+      projectVPCNetwork <- google
       operation <- gdDAO.createCluster(googleProject, clusterName, machineConfig, initScript,
         serviceAccountInfo.clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes)
       cluster = Cluster.create(clusterRequest, userEmail, clusterName, googleProject, serviceAccountInfo,

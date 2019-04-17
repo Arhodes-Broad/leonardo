@@ -35,8 +35,8 @@ class HttpGoogleDataprocDAO(appName: String,
                             googleCredentialMode: GoogleCredentialMode,
                             override val workbenchMetricBaseName: String,
                             networkTag: NetworkTag,
-                            vpcNetwork: Option[VPCNetworkName],
-                            vpcSubnet: Option[VPCSubnetName],
+                            defaultVPCNetwork: Option[VPCNetworkName],
+                            defaultVPCSubnet: Option[VPCSubnetName],
                             defaultRegion: String,
                             zoneOpt: Option[String],
                             defaultExecutionTimeout: FiniteDuration)
@@ -64,10 +64,12 @@ class HttpGoogleDataprocDAO(appName: String,
                              clusterServiceAccount: Option[WorkbenchEmail],
                              credentialsFileName: Option[String],
                              stagingBucket: GcsBucketName,
-                             clusterScopes: Set[String]): Future[Operation] = {
+                             clusterScopes: Set[String],
+                             clusterVPCNetwork: Option[String],
+                             clusterVPCSubnet: Option[String]): Future[Operation] = {
     val cluster = new DataprocCluster()
       .setClusterName(clusterName.value)
-      .setConfig(getClusterConfig(machineConfig, initScript, clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes))
+      .setConfig(getClusterConfig(machineConfig, initScript, clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes, clusterVPCNetwork, clusterVPCSubnet))
 
     val request = dataproc.projects().regions().clusters().create(googleProject.value, defaultRegion, cluster)
 
@@ -212,7 +214,7 @@ class HttpGoogleDataprocDAO(appName: String,
       }
   }
 
-  private def getClusterConfig(machineConfig: MachineConfig, initScript: GcsPath, clusterServiceAccount: Option[WorkbenchEmail], credentialsFileName: Option[String], stagingBucket: GcsBucketName, clusterScopes: Set[String]): DataprocClusterConfig = {
+  private def getClusterConfig(machineConfig: MachineConfig, initScript: GcsPath, clusterServiceAccount: Option[WorkbenchEmail], credentialsFileName: Option[String], stagingBucket: GcsBucketName, clusterScopes: Set[String], clusterVPCNetwork: Option[VPCNetworkName], clusterVPCSubnet: Option[VPCSubnetName]): DataprocClusterConfig = {
     // Create a GceClusterConfig, which has the common config settings for resources of Google Compute Engine cluster instances,
     // applicable to all instances in the cluster.
     // Set the network tag, network, and subnet. This allows the created GCE instances to be exposed by Leo's firewall rule.
@@ -220,7 +222,17 @@ class HttpGoogleDataprocDAO(appName: String,
       val baseConfig = new GceClusterConfig()
         .setTags(List(networkTag.value).asJava)
 
-      (vpcNetwork, vpcSubnet) match {
+      (defaultVPCNetwork, defaultVPCSubnet) match {
+        case (_, Some(subnet)) =>
+          baseConfig.setSubnetworkUri(subnet.value)
+        case (Some(network), _) =>
+          baseConfig.setNetworkUri(network.value)
+        case _ =>
+          baseConfig
+      }
+
+      //todo: be more elegant about this
+      (clusterVPCNetwork, clusterVPCSubnet) match {
         case (_, Some(subnet)) =>
           baseConfig.setSubnetworkUri(subnet.value)
         case (Some(network), _) =>
