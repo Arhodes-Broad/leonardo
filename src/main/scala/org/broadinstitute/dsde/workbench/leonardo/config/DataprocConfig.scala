@@ -18,5 +18,7 @@ case class DataprocConfig(
                            networkTag: String,
                            defaultScopes: Set[String],
                            vpcNetwork: Option[String],
-                           vpcSubnet: Option[String]
+                           vpcSubnet: Option[String],
+                           projectVPCNetworkLabel: Option[String],
+                           projectVPCSubnetLabel: Option[String]
                          )

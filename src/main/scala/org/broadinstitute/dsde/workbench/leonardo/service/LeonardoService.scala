@@ -592,9 +592,10 @@ class LeonardoService(protected val dataprocConfig: DataprocConfig,
       autopauseThreshold = calculateAutopauseThreshold(clusterRequest.autopause, clusterRequest.autopauseThreshold)
       clusterScopes = clusterRequest.scopes.getOrElse(dataprocConfig.defaultScopes)
       credentialsFileName = serviceAccountInfo.notebookServiceAccount.map(_ => s"/etc/${ClusterInitValues.serviceAccountCredentialsFilename}")
-      projectVPCNetwork <- google
+      projectLabels <- googleProjectDAO.getLabels(googleProject.value)
       operation <- gdDAO.createCluster(googleProject, clusterName, machineConfig, initScript,
-        serviceAccountInfo.clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes)
+        serviceAccountInfo.clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes,
+        projectLabels.get(dataprocConfig.).map(VPCNetworkName), projectLabels.get("pull-from-config").map(VPCSubnetName))
       cluster = Cluster.create(clusterRequest, userEmail, clusterName, googleProject, serviceAccountInfo,
         machineConfig, dataprocConfig.clusterUrlBase, autopauseThreshold, clusterScopes, Option(operation), Option(stagingBucket), clusterImages)
     } yield (cluster, initBucket, serviceAccountKeyOpt)

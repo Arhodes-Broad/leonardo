@@ -32,7 +32,9 @@ package object config {
       config.getString("networkTag"),
       config.getStringList("defaultScopes").asScala.toSet,
       config.getAs[String]("vpcNetwork"),
-      config.getAs[String]("vpcSubnet")
+      config.getAs[String]("vpcSubnet"),
+      config.getAs[String]("projectVPCNetworkLabel"),
+      config.getAs[String]("projectVPCSubnetLabel")
     )
   }
 

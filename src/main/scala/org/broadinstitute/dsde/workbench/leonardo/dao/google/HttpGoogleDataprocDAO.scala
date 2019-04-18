@@ -35,8 +35,8 @@ class HttpGoogleDataprocDAO(appName: String,
                             googleCredentialMode: GoogleCredentialMode,
                             override val workbenchMetricBaseName: String,
                             networkTag: NetworkTag,
-                            defaultVPCNetwork: Option[VPCNetworkName],
-                            defaultVPCSubnet: Option[VPCSubnetName],
+//                            defaultVPCNetwork: Option[VPCNetworkName],
+//                            defaultVPCSubnet: Option[VPCSubnetName],
                             defaultRegion: String,
                             zoneOpt: Option[String],
                             defaultExecutionTimeout: FiniteDuration)
@@ -65,11 +65,11 @@ class HttpGoogleDataprocDAO(appName: String,
                              credentialsFileName: Option[String],
                              stagingBucket: GcsBucketName,
                              clusterScopes: Set[String],
-                             clusterVPCNetwork: Option[String],
-                             clusterVPCSubnet: Option[String]): Future[Operation] = {
+                             projectVPCNetwork: Option[VPCNetworkName],
+                             projectVPCSubnet: Option[VPCSubnetName]): Future[Operation] = {
     val cluster = new DataprocCluster()
       .setClusterName(clusterName.value)
-      .setConfig(getClusterConfig(machineConfig, initScript, clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes, clusterVPCNetwork, clusterVPCSubnet))
+      .setConfig(getClusterConfig(machineConfig, initScript, clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes, projectVPCNetwork, projectVPCSubnet))
 
     val request = dataproc.projects().regions().clusters().create(googleProject.value, defaultRegion, cluster)
 
@@ -214,7 +214,7 @@ class HttpGoogleDataprocDAO(appName: String,
       }
   }
 
-  private def getClusterConfig(machineConfig: MachineConfig, initScript: GcsPath, clusterServiceAccount: Option[WorkbenchEmail], credentialsFileName: Option[String], stagingBucket: GcsBucketName, clusterScopes: Set[String], clusterVPCNetwork: Option[VPCNetworkName], clusterVPCSubnet: Option[VPCSubnetName]): DataprocClusterConfig = {
+  private def getClusterConfig(machineConfig: MachineConfig, initScript: GcsPath, clusterServiceAccount: Option[WorkbenchEmail], credentialsFileName: Option[String], stagingBucket: GcsBucketName, clusterScopes: Set[String], projectVPCNetwork: Option[VPCNetworkName], projectVPCSubnet: Option[VPCSubnetName]): DataprocClusterConfig = {
     // Create a GceClusterConfig, which has the common config settings for resources of Google Compute Engine cluster instances,
     // applicable to all instances in the cluster.
     // Set the network tag, network, and subnet. This allows the created GCE instances to be exposed by Leo's firewall rule.
@@ -222,23 +222,29 @@ class HttpGoogleDataprocDAO(appName: String,
       val baseConfig = new GceClusterConfig()
         .setTags(List(networkTag.value).asJava)
 
-      (defaultVPCNetwork, defaultVPCSubnet) match {
-        case (_, Some(subnet)) =>
-          baseConfig.setSubnetworkUri(subnet.value)
-        case (Some(network), _) =>
-          baseConfig.setNetworkUri(network.value)
-        case _ =>
-          baseConfig
-      }
+      //Dataproc only allows you to specify a subnet OR a network. Subnets will be preferred if present.
+      //High-security networks specified inside of the project will always take precedence over anything
+      //else. Thus, VPC configuration takes the following precedence:
+      // 1) High-security subnet in the project (if present)
+      // 2) High-security network in the project (if present)
+      // 3) Subnet specified in leonardo.conf (if present)
+      // 4) Network specified in leonardo.conf (if present)
+      // 5) The default network in the project
 
-      //todo: be more elegant about this
-      (clusterVPCNetwork, clusterVPCSubnet) match {
+      (projectVPCNetwork, projectVPCSubnet) match {
         case (_, Some(subnet)) =>
           baseConfig.setSubnetworkUri(subnet.value)
         case (Some(network), _) =>
           baseConfig.setNetworkUri(network.value)
         case _ =>
-          baseConfig
+          (defaultVPCNetwork, defaultVPCSubnet) match {
+            case (_, Some(subnet)) =>
+              baseConfig.setSubnetworkUri(subnet.value)
+            case (Some(network), _) =>
+              baseConfig.setNetworkUri(network.value)
+            case _ =>
+              baseConfig
+          }
       }
     }
 
