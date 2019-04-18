@@ -65,11 +65,11 @@ class HttpGoogleDataprocDAO(appName: String,
                              credentialsFileName: Option[String],
                              stagingBucket: GcsBucketName,
                              clusterScopes: Set[String],
-                             projectVPCNetwork: Option[VPCNetworkName],
-                             projectVPCSubnet: Option[VPCSubnetName]): Future[Operation] = {
+                             vpcNetwork: Option[VPCNetworkName],
+                             vpcSubnet: Option[VPCSubnetName]): Future[Operation] = {
     val cluster = new DataprocCluster()
       .setClusterName(clusterName.value)
-      .setConfig(getClusterConfig(machineConfig, initScript, clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes, projectVPCNetwork, projectVPCSubnet))
+      .setConfig(getClusterConfig(machineConfig, initScript, clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes, vpcNetwork, vpcSubnet))
 
     val request = dataproc.projects().regions().clusters().create(googleProject.value, defaultRegion, cluster)
 
@@ -214,7 +214,7 @@ class HttpGoogleDataprocDAO(appName: String,
       }
   }
 
-  private def getClusterConfig(machineConfig: MachineConfig, initScript: GcsPath, clusterServiceAccount: Option[WorkbenchEmail], credentialsFileName: Option[String], stagingBucket: GcsBucketName, clusterScopes: Set[String], projectVPCNetwork: Option[VPCNetworkName], projectVPCSubnet: Option[VPCSubnetName]): DataprocClusterConfig = {
+  private def getClusterConfig(machineConfig: MachineConfig, initScript: GcsPath, clusterServiceAccount: Option[WorkbenchEmail], credentialsFileName: Option[String], stagingBucket: GcsBucketName, clusterScopes: Set[String], vpcNetwork: Option[VPCNetworkName], vpcSubnet: Option[VPCSubnetName]): DataprocClusterConfig = {
     // Create a GceClusterConfig, which has the common config settings for resources of Google Compute Engine cluster instances,
     // applicable to all instances in the cluster.
     // Set the network tag, network, and subnet. This allows the created GCE instances to be exposed by Leo's firewall rule.
@@ -231,20 +231,13 @@ class HttpGoogleDataprocDAO(appName: String,
       // 4) Network specified in leonardo.conf (if present)
       // 5) The default network in the project
 
-      (projectVPCNetwork, projectVPCSubnet) match {
+      (vpcNetwork, vpcSubnet) match {
         case (_, Some(subnet)) =>
           baseConfig.setSubnetworkUri(subnet.value)
         case (Some(network), _) =>
           baseConfig.setNetworkUri(network.value)
         case _ =>
-          (defaultVPCNetwork, defaultVPCSubnet) match {
-            case (_, Some(subnet)) =>
-              baseConfig.setSubnetworkUri(subnet.value)
-            case (Some(network), _) =>
-              baseConfig.setNetworkUri(network.value)
-            case _ =>
-              baseConfig
-          }
+          baseConfig
       }
     }
 

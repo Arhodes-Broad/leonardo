@@ -593,9 +593,11 @@ class LeonardoService(protected val dataprocConfig: DataprocConfig,
       clusterScopes = clusterRequest.scopes.getOrElse(dataprocConfig.defaultScopes)
       credentialsFileName = serviceAccountInfo.notebookServiceAccount.map(_ => s"/etc/${ClusterInitValues.serviceAccountCredentialsFilename}")
       projectLabels <- googleProjectDAO.getLabels(googleProject.value)
+      network = getClusterNetwork(projectLabels)
+      subnet = getClusterSubnet(projectLabels)
       operation <- gdDAO.createCluster(googleProject, clusterName, machineConfig, initScript,
         serviceAccountInfo.clusterServiceAccount, credentialsFileName, stagingBucket, clusterScopes,
-        projectLabels.get(dataprocConfig.).map(VPCNetworkName), projectLabels.get("pull-from-config").map(VPCSubnetName))
+        network, subnet)
       cluster = Cluster.create(clusterRequest, userEmail, clusterName, googleProject, serviceAccountInfo,
         machineConfig, dataprocConfig.clusterUrlBase, autopauseThreshold, clusterScopes, Option(operation), Option(stagingBucket), clusterImages)
     } yield (cluster, initBucket, serviceAccountKeyOpt)
@@ -604,6 +606,33 @@ class LeonardoService(protected val dataprocConfig: DataprocConfig,
     googleFuture.andThen { case Failure(t) =>
       // Don't wait for this future
       cleanUpGoogleResourcesOnError(t, googleProject, clusterName, initBucketName, serviceAccountInfo)
+    }
+  }
+
+
+  private def getClusterNetwork(projectLabels: Map[String, String]): Option[VPCNetworkName] = {
+    //if we specify a network label in config, we should use that to see if the project has a network specified
+    //if it does, we will use that, else we will look to see if leo config has a network specified, else we will use the default
+    dataprocConfig.projectVPCNetworkLabel match {
+      case Some(label) =>
+        projectLabels.get(label).map(VPCNetworkName) match {
+          case Some(network) => Option(network)
+          case None => dataprocConfig.vpcNetwork.map(VPCNetworkName)
+        }
+      case None => dataprocConfig.vpcNetwork.map(VPCNetworkName)
+    }
+  }
+
+  private def getClusterSubnet(projectLabels: Map[String, String]): Option[VPCSubnetName] = {
+    //if we specify a subnet label in config, we should use that to see if the project has a subnet specified
+    //if it does, we will use that, else we will look to see if leo config has a subnet specified, else we will use the default
+    dataprocConfig.projectVPCSubnetLabel match {
+      case Some(label) =>
+        projectLabels.get(label).map(VPCSubnetName) match {
+          case Some(subnet) => Option(subnet)
+          case None => dataprocConfig.vpcSubnet.map(VPCSubnetName)
+        }
+      case None => dataprocConfig.vpcSubnet.map(VPCSubnetName)
     }
   }
 
