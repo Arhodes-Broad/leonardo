@@ -22,6 +22,7 @@ import org.broadinstitute.dsde.workbench.model.google.GoogleModelJsonSupport._
 import org.broadinstitute.dsde.workbench.model.google._
 import org.broadinstitute.dsde.workbench.model._
 import spray.json.{RootJsonFormat, RootJsonReader, _}
+import ca.mrvisser.sealerate
 
 // Create cluster API request
 final case class ClusterRequest(labels: LabelMap,
@@ -283,6 +284,71 @@ object ClusterInitValues {
     )
 }
 
+sealed abstract class PropertyFilePrefix
+object PropertyFilePrefix {
+  case object CapacityScheduler extends PropertyFilePrefix {
+    override def toString: String = "capacity-scheduler"
+  }
+  case object Core extends PropertyFilePrefix {
+    override def toString: String = "core"
+  }
+  case object Distcp extends PropertyFilePrefix {
+    override def toString: String = "distcp"
+  }
+  case object HadoopEnv extends PropertyFilePrefix {
+    override def toString: String = "hadoop-env"
+  }
+  case object Hdfs extends PropertyFilePrefix {
+    override def toString: String = "hdfs"
+  }
+  case object Hive extends PropertyFilePrefix {
+    override def toString: String = "hive"
+  }
+  case object Mapred extends PropertyFilePrefix {
+    override def toString: String = "mapred"
+  }
+  case object MapredEnv extends PropertyFilePrefix {
+    override def toString: String = "mapred-env"
+  }
+  case object Pig extends PropertyFilePrefix {
+    override def toString: String = "pig"
+  }
+  case object Presto extends PropertyFilePrefix {
+    override def toString: String = "presto"
+  }
+  case object PrestoJvm extends PropertyFilePrefix {
+    override def toString: String = "presto-jvm"
+  }
+  case object Spark extends PropertyFilePrefix {
+    override def toString: String = "spark"
+  }
+  case object SparkEnv extends PropertyFilePrefix {
+    override def toString: String = "spark-env"
+  }
+  case object Yarn extends PropertyFilePrefix {
+    override def toString: String = "yarn"
+  }
+  case object YarnEnv extends PropertyFilePrefix {
+    override def toString: String = "yarn-env"
+  }
+  case object Zeppelin extends PropertyFilePrefix {
+    override def toString: String = "zeppelin"
+  }
+  case object ZeppelinEnv extends PropertyFilePrefix {
+    override def toString: String = "zeppelin-env"
+  }
+  case object Zookeeper extends PropertyFilePrefix {
+    override def toString: String = "zookeeper"
+  }
+  case object Dataproc extends PropertyFilePrefix {
+    override def toString: String = "dataproc"
+  }
+
+  def values: Set[PropertyFilePrefix] = sealerate.values[PropertyFilePrefix]
+
+  def stringToObject: Map[String, PropertyFilePrefix] = values.map(v =>  v.toString -> v).toMap
+}
+
 sealed trait ExtensionType extends EnumEntry
 object ExtensionType extends Enum[ExtensionType] {
   val values = findValues
@@ -317,12 +383,24 @@ object LeonardoJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 
   implicit val ClusterRequestFormat: RootJsonReader[ClusterRequest] = (json: JsValue) => {
     val fields = json.asJsObject.fields
+    val properties = for {
+      props <- fields.get("properties").map(_.convertTo[Map[String, String]])
+    } yield {
+      // validating user's properties input has valid prefix
+      props.keys.toList.map{
+        s =>
+          val prefix = s.split(":")(0)
+          PropertyFilePrefix.stringToObject.get(prefix).getOrElse(throw new RuntimeException(s"invalid properties $s"))
+      }
+      props
+    }
+
     ClusterRequest(
       fields.get("labels").map(_.convertTo[LabelMap]).getOrElse(Map.empty),
       fields.get("jupyterExtensionUri").map(_.convertTo[GcsPath]),
       fields.get("jupyterUserScriptUri").map(_.convertTo[GcsPath]),
       fields.get("machineConfig").map(_.convertTo[MachineConfig]),
-      fields.get("properties").map(_.convertTo[Map[String, String]]).getOrElse(Map.empty),
+      properties.getOrElse(Map.empty),
       fields.get("stopAfterCreation").map(_.convertTo[Boolean]),
       fields.get("userJupyterExtensionConfig").map(_.convertTo[UserJupyterExtensionConfig]),
       fields.get("autopause").map(_.convertTo[Boolean]),

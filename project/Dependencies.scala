@@ -82,6 +82,7 @@ object Dependencies {
   val hikariCP: ModuleID =  "com.typesafe.slick" %% "slick-hikaricp"        % slickV excludeAll(excludeSlf4j)
   val mysql: ModuleID =     "mysql"               % "mysql-connector-java"  % "8.0.11"
   val liquibase: ModuleID = "org.liquibase"       % "liquibase-core"        % "3.5.3"
+  val sealerate: ModuleID = "ca.mrvisser" %% "sealerate" % "0.0.5"
 
   val rootDependencies = Seq(
     // proactively pull in latest versions of Jackson libs, instead of relying on the versions
@@ -124,6 +125,8 @@ object Dependencies {
     workbenchGoogle,
     workbenchGoogleTest,
     workbenchMetrics,
-    sam
+    sam,
+
+    sealerate
   )
 }

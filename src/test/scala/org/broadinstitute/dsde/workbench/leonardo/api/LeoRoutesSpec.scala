@@ -386,7 +386,6 @@ class LeoRoutesSpec extends FlatSpec with ScalatestRouteTest with CommonTestData
       forallClusterCreationVersions(clusterName) { (version, clstrName, statusCode) =>
         Put(s"/api/cluster$version/${googleProject.value}/$clstrName", request.toJson) ~> timedLeoRoutes.route ~> check {
           status shouldEqual statusCode
-
           validateCookie {
             header[`Set-Cookie`]
           }
