@@ -21,13 +21,14 @@ import org.broadinstitute.dsde.workbench.model.WorkbenchIdentityJsonSupport._
 import org.broadinstitute.dsde.workbench.model.google.GoogleModelJsonSupport._
 import org.broadinstitute.dsde.workbench.model.google._
 import org.broadinstitute.dsde.workbench.model._
-import spray.json._
+import spray.json.{RootJsonFormat, RootJsonReader, _}
 
 // Create cluster API request
-case class ClusterRequest(labels: Option[LabelMap] = Option(Map.empty),
+final case class ClusterRequest(labels: LabelMap,
                           jupyterExtensionUri: Option[GcsPath] = None,
                           jupyterUserScriptUri: Option[GcsPath] = None,
                           machineConfig: Option[MachineConfig] = None,
+                          properties: Map[String, String],
                           stopAfterCreation: Option[Boolean] = None,
                           userJupyterExtensionConfig: Option[UserJupyterExtensionConfig] = None,
                           autopause: Option[Boolean] = None,
@@ -35,7 +36,7 @@ case class ClusterRequest(labels: Option[LabelMap] = Option(Map.empty),
                           defaultClientId: Option[String] = None,
                           jupyterDockerImage: Option[String] = None,
                           rstudioDockerImage: Option[String] = None,
-                          scopes: Option[Set[String]] = None)
+                          scopes: Set[String] = Set.empty)
 
 
 case class UserJupyterExtensionConfig(nbExtensions: Map[String, String] = Map(),
@@ -77,13 +78,14 @@ case class ClusterImage(tool: ClusterTool,
 
 // The cluster itself
 // Also the API response for "list clusters" and "get active cluster"
-case class Cluster(id: Long = 0, // DB AutoInc
+final case class Cluster(id: Long = 0, // DB AutoInc
                    clusterName: ClusterName,
                    googleProject: GoogleProject,
                    serviceAccountInfo: ServiceAccountInfo,
                    dataprocInfo: DataprocInfo,
                    auditInfo: AuditInfo,
                    machineConfig: MachineConfig,
+                   properties: Map[String, String],
                    clusterUrl: URL,
                    status: ClusterStatus,
                    labels: LabelMap,
@@ -122,9 +124,10 @@ object Cluster {
       dataprocInfo = DataprocInfo(operation.map(_.uuid), operation.map(_.name), stagingBucket, None),
       auditInfo = AuditInfo(userEmail, Instant.now(), None, Instant.now()),
       machineConfig = machineConfig,
+      properties = clusterRequest.properties,
       clusterUrl = getClusterUrl(googleProject, clusterName, clusterUrlBase),
       status = ClusterStatus.Creating,
-      labels = clusterRequest.labels.getOrElse(Map()),
+      labels = clusterRequest.labels,
       jupyterExtensionUri = clusterRequest.jupyterExtensionUri,
       jupyterUserScriptUri = clusterRequest.jupyterUserScriptUri,
       errors = List.empty,
@@ -312,7 +315,24 @@ object LeonardoJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 
   implicit val UserClusterExtensionConfigFormat = jsonFormat4(UserJupyterExtensionConfig.apply)
 
-  implicit val ClusterRequestFormat = jsonFormat12(ClusterRequest)
+  implicit val ClusterRequestFormat: RootJsonReader[ClusterRequest] = (json: JsValue) => {
+    val fields = json.asJsObject.fields
+    ClusterRequest(
+      fields.get("labels").map(_.convertTo[LabelMap]).getOrElse(Map.empty),
+      fields.get("jupyterExtensionUri").map(_.convertTo[GcsPath]),
+      fields.get("jupyterUserScriptUri").map(_.convertTo[GcsPath]),
+      fields.get("machineConfig").map(_.convertTo[MachineConfig]),
+      fields.get("properties").map(_.convertTo[Map[String, String]]).getOrElse(Map.empty),
+      fields.get("stopAfterCreation").map(_.convertTo[Boolean]),
+      fields.get("userJupyterExtensionConfig").map(_.convertTo[UserJupyterExtensionConfig]),
+      fields.get("autopause").map(_.convertTo[Boolean]),
+      fields.get("autopauseThreshold").map(_.convertTo[Int]),
+      fields.get("defaultClientId").map(_.convertTo[String]),
+      fields.get("jupyterDockerImage").map(_.convertTo[String]),
+      fields.get("rstudioDockerImage").map(_.convertTo[String]),
+      fields.get("scopes").map(_.convertTo[Set[String]]).getOrElse(Set.empty)
+    )
+  }
 
   implicit val ClusterResourceFormat = ValueObjectFormat(ClusterResource)
 
@@ -345,6 +365,7 @@ object LeonardoJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
                       fields.getOrElse("destroyedDate", JsNull).convertTo[Option[Instant]],
                       fields.getOrElse("dateAccessed", JsNull).convertTo[Instant]),
             fields.getOrElse("machineConfig", JsNull).convertTo[MachineConfig],
+            fields.getOrElse("properties", JsNull).convertTo[Option[Map[String, String]]].getOrElse(Map.empty),
             fields.getOrElse("clusterUrl", JsNull).convertTo[URL],
             fields.getOrElse("status", JsNull).convertTo[ClusterStatus],
             fields.getOrElse("labels", JsNull).convertTo[LabelMap],
